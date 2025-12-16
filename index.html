@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrabble</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            /* Board */
+            --board-bg: #b8b896;
+            --board-lines: #a0a080;
+            /* Premium squares */
+            --triple-word: #e85a70;
+            --triple-word-text: #fff;
+            --double-word: #f0b8bc;
+            --double-word-text: #8b4a52;
+            --triple-letter: #5eb3d0;
+            --triple-letter-text: #1a4a5c;
+            --double-letter: #a8d8ea;
+            --double-letter-text: #2a6080;
+            --center-bg: #f0b8bc;
+            --center-star: #c45a68;
+            /* Frame */
+            --frame-dark: #5c4a3a;
+            --frame-mid: #7a6352;
+            --frame-light: #96806c;
+            --frame-accent: #c9a227;
+            /* Tiles */
+            --tile-border: #a07050;
+            --tile-border-light: #c89878;
+            --tile-face-1: #e8cdb8;
+            --tile-face-2: #dfc0a8;
+            --tile-face-3: #d4b090;
+            --tile-face-4: #c8a078;
+            --tile-text: #2a2018;
+            /* UI */
+            --bg-dark: #1a1a1a;
+            --text-light: #f5f0e6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            color: var(--text-light);
+        }
+
+        h1 {
+            color: var(--frame-accent);
+            font-size: 1.8rem;
+            letter-spacing: 6px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        /* Game container */
+        .game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Board */
+        .board-frame {
+            background: linear-gradient(145deg, var(--frame-light), var(--frame-dark));
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+        }
+
+        .board-inner {
+            background: var(--board-lines);
+            padding: 2px;
+            border-radius: 3px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, 32px);
+            gap: 2px;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            line-height: 1.1;
+            text-align: center;
+            border-radius: 1px;
+            position: relative;
+            transition: all 0.15s ease;
+        }
+
+        .cell.normal { background: var(--board-bg); }
+        .cell.DL { background: var(--double-letter); color: var(--double-letter-text); }
+        .cell.TL { background: var(--triple-letter); color: var(--triple-letter-text); }
+        .cell.DW { background: var(--double-word); color: var(--double-word-text); }
+        .cell.TW { background: var(--triple-word); color: var(--triple-word-text); }
+        .cell.center { background: var(--center-bg); }
+        .cell.center .star { font-size: 14px; color: var(--center-star); }
+
+        .cell.drop-target {
+            box-shadow: inset 0 0 0 2px var(--frame-accent);
+        }
+
+        .cell .premium-text {
+            font-size: 4px;
+            font-weight: 700;
+            line-height: 1.1;
+            pointer-events: none;
+        }
+
+        /* Tiles */
+        .tile {
+            width: 28px;
+            height: 28px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: grab;
+            user-select: none;
+            background: linear-gradient(160deg, var(--tile-border-light), var(--tile-border));
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+
+        .tile::before {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px; right: 2px; bottom: 2px;
+            border-radius: 2px;
+            background: 
+                repeating-linear-gradient(95deg, transparent 0px, transparent 3px, rgba(160,120,80,0.08) 3px, rgba(160,120,80,0.08) 4px),
+                linear-gradient(165deg, var(--tile-face-1), var(--tile-face-2) 30%, var(--tile-face-3) 70%, var(--tile-face-4));
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.7), inset 0 -1px 2px rgba(0,0,0,0.1);
+        }
+
+        .tile .letter {
+            position: relative;
+            z-index: 2;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--tile-text);
+        }
+
+        .tile .points {
+            position: absolute;
+            bottom: 2px;
+            right: 3px;
+            font-size: 6px;
+            font-weight: 600;
+            color: var(--tile-text);
+            z-index: 2;
+        }
+
+        .tile.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+            z-index: 1000;
+        }
+
+        .tile.placed-this-turn {
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4), 0 0 0 2px var(--frame-accent);
+        }
+
+        /* Rack */
+        .rack-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rack-frame {
+            background: linear-gradient(145deg, var(--frame-light), var(--frame-dark));
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+
+        .rack-label {
+            color: var(--frame-accent);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .rack {
+            background: var(--frame-mid);
+            padding: 6px 8px;
+            border-radius: 4px;
+            display: flex;
+            gap: 4px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
+            min-width: 240px;
+            min-height: 42px;
+            justify-content: center;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            background: linear-gradient(145deg, var(--frame-light), var(--frame-dark));
+            color: var(--text-light);
+            border: 1px solid var(--frame-mid);
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.primary {
+            background: linear-gradient(145deg, var(--frame-accent), #a68520);
+            color: #1a1a1a;
+            border-color: var(--frame-accent);
+        }
+
+        /* Side panel */
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 160px;
+        }
+
+        .info-box {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .info-box h3 {
+            color: var(--frame-accent);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+
+        .score-row.current {
+            color: var(--frame-accent);
+        }
+
+        .score-row .score {
+            font-weight: 700;
+        }
+
+        /* Word preview */
+        .word-preview {
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .word-preview .word-chip {
+            background: rgba(255,255,255,0.1);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .word-chip.valid {
+            background: rgba(46, 160, 67, 0.3);
+            color: #4ade80;
+        }
+
+        .word-chip.invalid {
+            background: rgba(220, 38, 38, 0.3);
+            color: #f87171;
+        }
+
+        /* Messages */
+        .message {
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .message.error {
+            background: rgba(220, 38, 38, 0.2);
+            color: #f87171;
+        }
+
+        .message.success {
+            background: rgba(46, 160, 67, 0.2);
+            color: #4ade80;
+        }
+
+        .message.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        /* Bag count */
+        .bag-display {
+            text-align: center;
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .bag-display strong {
+            color: var(--frame-accent);
+            font-size: 16px;
+        }
+
+        /* Turn indicator */
+        .turn-indicator {
+            text-align: center;
+            font-size: 12px;
+            padding: 6px 12px;
+            background: var(--frame-accent);
+            color: #1a1a1a;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 700px) {
+            .game-container { flex-direction: column; }
+            .board { grid-template-columns: repeat(15, 22px); }
+            .cell { width: 22px; height: 22px; font-size: 3px; }
+            .tile { width: 20px; height: 20px; }
+            .tile .letter { font-size: 11px; }
+            .tile .points { font-size: 5px; }
+            .side-panel { width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <h1>SCRABBLE</h1>
+
+    <div class="game-container">
+        <div class="side-panel">
+            <div class="info-box">
+                <h3>Score</h3>
+                <div class="score-row current" id="player1-score">
+                    <span>Player 1</span>
+                    <span class="score">0</span>
+                </div>
+                <div class="score-row" id="player2-score">
+                    <span>Player 2</span>
+                    <span class="score">0</span>
+                </div>
+            </div>
+
+            <div class="turn-indicator" id="turn-indicator">
+                Player 1's Turn
+            </div>
+
+            <div class="info-box">
+                <h3>Words Formed</h3>
+                <div class="word-preview" id="word-preview">
+                    <span style="opacity:0.5;font-size:10px;">Place tiles to form words</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>This Move</h3>
+                <div class="score-row">
+                    <span>Points</span>
+                    <span class="score" id="move-score">0</span>
+                </div>
+            </div>
+
+            <div class="bag-display">
+                Tiles remaining: <strong id="bag-count">86</strong>
+            </div>
+        </div>
+
+        <div>
+            <div class="board-frame">
+                <div class="board-inner">
+                    <div class="board" id="board"></div>
+                </div>
+            </div>
+
+            <div class="rack-area">
+                <div class="rack-frame">
+                    <div class="rack-label">Your Rack</div>
+                    <div class="rack" id="rack"></div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn primary" id="btn-play" disabled>Play Word</button>
+                    <button class="btn" id="btn-recall">Recall</button>
+                    <button class="btn" id="btn-shuffle">Shuffle</button>
+                    <button class="btn" id="btn-pass">Pass</button>
+                    <button class="btn" id="btn-exchange">Exchange</button>
+                </div>
+
+                <div id="message" class="message" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const BOARD_SIZE = 15;
+        const LETTER_VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10,'?':0};
+        const TILE_COUNTS = {A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1,'?':2};
+
+        const TW = [[0,0],[0,7],[0,14],[7,0],[7,14],[14,0],[14,7],[14,14]];
+        const DW = [[1,1],[2,2],[3,3],[4,4],[1,13],[2,12],[3,11],[4,10],[13,1],[12,2],[11,3],[10,4],[13,13],[12,12],[11,11],[10,10],[7,7]];
+        const TL = [[1,5],[1,9],[5,1],[5,5],[5,9],[5,13],[9,1],[9,5],[9,9],[9,13],[13,5],[13,9]];
+        const DL = [[0,3],[0,11],[2,6],[2,8],[3,0],[3,7],[3,14],[6,2],[6,6],[6,8],[6,12],[7,3],[7,11],[8,2],[8,6],[8,8],[8,12],[11,0],[11,7],[11,14],[12,6],[12,8],[14,3],[14,11]];
+
+        // Game state
+        let board = Array(15).fill(null).map(() => Array(15).fill(null));
+        let bag = [];
+        let currentPlayer = 1;
+        let scores = [0, 0];
+        let rack = [];
+        let placedThisTurn = []; // {row, col, letter, tileElement}
+        let isFirstMove = true;
+        let draggedTile = null;
+        let consecutivePasses = 0;
+
+        // Initialize bag
+        function initBag() {
+            bag = [];
+            for (let letter in TILE_COUNTS) {
+                for (let i = 0; i < TILE_COUNTS[letter]; i++) {
+                    bag.push(letter);
+                }
+            }
+            shuffleArray(bag);
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function drawTiles(count) {
+            const drawn = [];
+            for (let i = 0; i < count && bag.length > 0; i++) {
+                drawn.push(bag.pop());
+            }
+            return drawn;
+        }
+
+        function getCellType(r, c) {
+            if (r === 7 && c === 7) return 'center';
+            if (TW.some(p => p[0] === r && p[1] === c)) return 'TW';
+            if (DW.some(p => p[0] === r && p[1] === c)) return 'DW';
+            if (TL.some(p => p[0] === r && p[1] === c)) return 'TL';
+            if (DL.some(p => p[0] === r && p[1] === c)) return 'DL';
+            return 'normal';
+        }
+
+        function createTileElement(letter) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.dataset.letter = letter;
+            tile.draggable = true;
+
+            const letterEl = document.createElement('span');
+            letterEl.className = 'letter';
+            letterEl.textContent = letter === '?' ? '' : letter;
+            tile.appendChild(letterEl);
+
+            const points = document.createElement('span');
+            points.className = 'points';
+            points.textContent = LETTER_VALUES[letter];
+            tile.appendChild(points);
+
+            // Drag events
+            tile.addEventListener('dragstart', handleDragStart);
+            tile.addEventListener('dragend', handleDragEnd);
+
+            return tile;
+        }
+
+        function initBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    const type = getCellType(r, c);
+                    cell.className = 'cell ' + type;
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    if (type === 'TW') cell.innerHTML = '<span class="premium-text">TRIPLE<br>WORD</span>';
+                    else if (type === 'DW' && !(r === 7 && c === 7)) cell.innerHTML = '<span class="premium-text">DOUBLE<br>WORD</span>';
+                    else if (type === 'TL') cell.innerHTML = '<span class="premium-text">TRIPLE<br>LETTER</span>';
+                    else if (type === 'DL') cell.innerHTML = '<span class="premium-text">DOUBLE<br>LETTER</span>';
+                    else if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
+
+                    cell.addEventListener('dragover', handleDragOver);
+                    cell.addEventListener('dragleave', handleDragLeave);
+                    cell.addEventListener('drop', handleDrop);
+
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function renderRack() {
+            const rackEl = document.getElementById('rack');
+            rackEl.innerHTML = '';
+            rack.forEach(letter => {
+                rackEl.appendChild(createTileElement(letter));
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedTile = e.target.closest('.tile');
+            draggedTile.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            if (draggedTile) {
+                draggedTile.classList.remove('dragging');
+                draggedTile = null;
+            }
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const cell = e.target.closest('.cell');
+            if (cell && !cell.querySelector('.tile') && !board[cell.dataset.row][cell.dataset.col]) {
+                cell.classList.add('drop-target');
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+
+        function handleDragLeave(e) {
+            e.target.closest('.cell')?.classList.remove('drop-target');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const cell = e.target.closest('.cell');
+            if (!cell || !draggedTile) return;
+            
+            cell.classList.remove('drop-target');
+            
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            
+            if (board[row][col]) return; // Cell occupied
+
+            const letter = draggedTile.dataset.letter;
+            
+            // Handle blank tile
+            let actualLetter = letter;
+            if (letter === '?') {
+                actualLetter = prompt('Enter letter for blank tile (A-Z):')?.toUpperCase();
+                if (!actualLetter || actualLetter.length !== 1 || !/[A-Z]/.test(actualLetter)) {
+                    showMessage('Invalid letter for blank', 'error');
+                    return;
+                }
+            }
+
+            // Remove from rack
+            const idx = rack.indexOf(letter);
+            if (idx > -1) rack.splice(idx, 1);
+            
+            // Remove from previous board position if moving on board
+            const prevPlacement = placedThisTurn.find(p => p.tileElement === draggedTile);
+            if (prevPlacement) {
+                board[prevPlacement.row][prevPlacement.col] = null;
+                placedThisTurn = placedThisTurn.filter(p => p !== prevPlacement);
+            }
+
+            // Place on board
+            const newTile = createTileElement(letter === '?' ? actualLetter : letter);
+            newTile.classList.add('placed-this-turn');
+            if (letter === '?') newTile.dataset.isBlank = 'true';
+            
+            // Clear cell content and add tile
+            cell.innerHTML = '';
+            cell.appendChild(newTile);
+            
+            board[row][col] = { letter: actualLetter, isBlank: letter === '?' };
+            placedThisTurn.push({ row, col, letter: actualLetter, tileElement: newTile, originalLetter: letter });
+
+            renderRack();
+            updateWordPreview();
+        }
+
+        async function validateWord(word) {
+            try {
+                const res = await fetch('/api/check?word=' + encodeURIComponent(word));
+                const data = await res.json();
+                return data.valid;
+            } catch {
+                return true; // If server down, assume valid
+            }
+        }
+
+        function getFormedWords() {
+            if (placedThisTurn.length === 0) return [];
+
+            const words = [];
+            const rows = [...new Set(placedThisTurn.map(p => p.row))];
+            const cols = [...new Set(placedThisTurn.map(p => p.col))];
+
+            // Determine direction
+            const isHorizontal = rows.length === 1;
+            const isVertical = cols.length === 1;
+
+            // Get main word
+            if (isHorizontal || placedThisTurn.length === 1) {
+                const row = placedThisTurn[0].row;
+                let startCol = placedThisTurn[0].col;
+                while (startCol > 0 && board[row][startCol - 1]) startCol--;
+                
+                let word = '';
+                let positions = [];
+                let col = startCol;
+                while (col < 15 && board[row][col]) {
+                    word += board[row][col].letter;
+                    positions.push({ row, col, ...board[row][col], isNew: placedThisTurn.some(p => p.row === row && p.col === col) });
+                    col++;
+                }
+                if (word.length > 1) words.push({ word, positions });
+            }
+
+            if (isVertical || placedThisTurn.length === 1) {
+                const col = placedThisTurn[0].col;
+                let startRow = placedThisTurn[0].row;
+                while (startRow > 0 && board[startRow - 1][col]) startRow--;
+                
+                let word = '';
+                let positions = [];
+                let row = startRow;
+                while (row < 15 && board[row][col]) {
+                    word += board[row][col].letter;
+                    positions.push({ row, col, ...board[row][col], isNew: placedThisTurn.some(p => p.row === row && p.col === col) });
+                    row++;
+                }
+                if (word.length > 1) words.push({ word, positions });
+            }
+
+            // Get cross words
+            placedThisTurn.forEach(({ row, col }) => {
+                // Vertical cross word
+                if (isHorizontal || placedThisTurn.length === 1) {
+                    let startRow = row;
+                    while (startRow > 0 && board[startRow - 1][col]) startRow--;
+                    
+                    let word = '';
+                    let positions = [];
+                    let r = startRow;
+                    while (r < 15 && board[r][col]) {
+                        word += board[r][col].letter;
+                        positions.push({ row: r, col, ...board[r][col], isNew: placedThisTurn.some(p => p.row === r && p.col === col) });
+                        r++;
+                    }
+                    if (word.length > 1 && !words.some(w => w.word === word && w.positions[0].row === positions[0].row && w.positions[0].col === positions[0].col)) {
+                        words.push({ word, positions });
+                    }
+                }
+
+                // Horizontal cross word
+                if (isVertical || placedThisTurn.length === 1) {
+                    let startCol = col;
+                    while (startCol > 0 && board[row][startCol - 1]) startCol--;
+                    
+                    let word = '';
+                    let positions = [];
+                    let c = startCol;
+                    while (c < 15 && board[row][c]) {
+                        word += board[row][c].letter;
+                        positions.push({ row, col: c, ...board[row][c], isNew: placedThisTurn.some(p => p.row === row && p.col === c) });
+                        c++;
+                    }
+                    if (word.length > 1 && !words.some(w => w.word === word && w.positions[0].row === positions[0].row && w.positions[0].col === positions[0].col)) {
+                        words.push({ word, positions });
+                    }
+                }
+            });
+
+            return words;
+        }
+
+        function calculateScore(words) {
+            let total = 0;
+            words.forEach(({ word, positions }) => {
+                let wordScore = 0;
+                let wordMultiplier = 1;
+
+                positions.forEach(pos => {
+                    let letterValue = pos.isBlank ? 0 : LETTER_VALUES[pos.letter] || 0;
+                    
+                    if (pos.isNew) {
+                        if (TL.some(p => p[0] === pos.row && p[1] === pos.col)) letterValue *= 3;
+                        else if (DL.some(p => p[0] === pos.row && p[1] === pos.col)) letterValue *= 2;
+
+                        if (TW.some(p => p[0] === pos.row && p[1] === pos.col)) wordMultiplier *= 3;
+                        else if (DW.some(p => p[0] === pos.row && p[1] === pos.col)) wordMultiplier *= 2;
+                    }
+                    
+                    wordScore += letterValue;
+                });
+
+                total += wordScore * wordMultiplier;
+            });
+
+            // Bingo bonus
+            if (placedThisTurn.length === 7) total += 50;
+
+            return total;
+        }
+
+        async function updateWordPreview() {
+            const preview = document.getElementById('word-preview');
+            const words = getFormedWords();
+            
+            if (words.length === 0) {
+                preview.innerHTML = '<span style="opacity:0.5;font-size:10px;">Place tiles to form words</span>';
+                document.getElementById('move-score').textContent = '0';
+                document.getElementById('btn-play').disabled = true;
+                return;
+            }
+
+            preview.innerHTML = '';
+            let allValid = true;
+
+            for (const { word } of words) {
+                const chip = document.createElement('span');
+                chip.className = 'word-chip';
+                chip.textContent = word;
+                
+                const valid = await validateWord(word);
+                chip.classList.add(valid ? 'valid' : 'invalid');
+                if (!valid) allValid = false;
+                
+                preview.appendChild(chip);
+            }
+
+            const score = calculateScore(words);
+            document.getElementById('move-score').textContent = score;
+            document.getElementById('btn-play').disabled = !allValid || !validatePlacement();
+        }
+
+        function validatePlacement() {
+            if (placedThisTurn.length === 0) return false;
+
+            // Check all tiles in a line
+            const rows = [...new Set(placedThisTurn.map(p => p.row))];
+            const cols = [...new Set(placedThisTurn.map(p => p.col))];
+            
+            if (rows.length > 1 && cols.length > 1) return false;
+
+            // First move must cover center
+            if (isFirstMove) {
+                return placedThisTurn.some(p => p.row === 7 && p.col === 7);
+            }
+
+            // Must connect to existing tiles
+            return placedThisTurn.some(({ row, col }) => {
+                return (row > 0 && board[row-1][col] && !placedThisTurn.some(p => p.row === row-1 && p.col === col)) ||
+                       (row < 14 && board[row+1][col] && !placedThisTurn.some(p => p.row === row+1 && p.col === col)) ||
+                       (col > 0 && board[row][col-1] && !placedThisTurn.some(p => p.row === row && p.col === col-1)) ||
+                       (col < 14 && board[row][col+1] && !placedThisTurn.some(p => p.row === row && p.col === col+1));
+            });
+        }
+
+        function showMessage(text, type = 'info') {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = 'message ' + type;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        }
+
+        async function playWord() {
+            const words = getFormedWords();
+            if (words.length === 0) return;
+
+            // Validate all words
+            for (const { word } of words) {
+                const valid = await validateWord(word);
+                if (!valid) {
+                    showMessage(`"${word}" is not a valid word!`, 'error');
+                    return;
+                }
+            }
+
+            const score = calculateScore(words);
+            scores[currentPlayer - 1] += score;
+
+            // Clear placed markers
+            placedThisTurn.forEach(p => p.tileElement.classList.remove('placed-this-turn'));
+            placedThisTurn = [];
+            isFirstMove = false;
+            consecutivePasses = 0;
+
+            // Draw new tiles
+            const newTiles = drawTiles(7 - rack.length);
+            rack.push(...newTiles);
+
+            showMessage(`+${score} points!`, 'success');
+            switchPlayer();
+        }
+
+        function recallTiles() {
+            placedThisTurn.forEach(({ row, col, originalLetter }) => {
+                board[row][col] = null;
+                rack.push(originalLetter);
+                
+                // Restore cell
+                const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                const type = getCellType(row, col);
+                cell.innerHTML = '';
+                if (type === 'TW') cell.innerHTML = '<span class="premium-text">TRIPLE<br>WORD</span>';
+                else if (type === 'DW' && !(row === 7 && col === 7)) cell.innerHTML = '<span class="premium-text">DOUBLE<br>WORD</span>';
+                else if (type === 'TL') cell.innerHTML = '<span class="premium-text">TRIPLE<br>LETTER</span>';
+                else if (type === 'DL') cell.innerHTML = '<span class="premium-text">DOUBLE<br>LETTER</span>';
+                else if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
+            });
+            
+            placedThisTurn = [];
+            renderRack();
+            updateWordPreview();
+        }
+
+        function shuffleRack() {
+            shuffleArray(rack);
+            renderRack();
+        }
+
+        function passTurn() {
+            recallTiles();
+            consecutivePasses++;
+            
+            if (consecutivePasses >= 4) {
+                endGame();
+                return;
+            }
+            
+            showMessage('Turn passed', 'info');
+            switchPlayer();
+        }
+
+        function exchangeTiles() {
+            if (bag.length < 7) {
+                showMessage('Not enough tiles in bag', 'error');
+                return;
+            }
+            
+            recallTiles();
+            const toExchange = prompt('Enter letters to exchange (e.g., "ABC"):')?.toUpperCase();
+            if (!toExchange) return;
+
+            const letters = toExchange.split('');
+            const validLetters = [];
+            
+            letters.forEach(l => {
+                const idx = rack.indexOf(l);
+                if (idx > -1) {
+                    rack.splice(idx, 1);
+                    validLetters.push(l);
+                }
+            });
+
+            if (validLetters.length === 0) {
+                showMessage('No valid letters to exchange', 'error');
+                return;
+            }
+
+            // Draw new tiles first, then put old ones back
+            const newTiles = drawTiles(validLetters.length);
+            rack.push(...newTiles);
+            bag.push(...validLetters);
+            shuffleArray(bag);
+
+            renderRack();
+            showMessage(`Exchanged ${validLetters.length} tiles`, 'info');
+            switchPlayer();
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('player1-score').classList.toggle('current', currentPlayer === 1);
+            document.getElementById('player2-score').classList.toggle('current', currentPlayer === 2);
+            document.getElementById('player1-score').querySelector('.score').textContent = scores[0];
+            document.getElementById('player2-score').querySelector('.score').textContent = scores[1];
+            document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn`;
+            document.getElementById('bag-count').textContent = bag.length;
+            updateWordPreview();
+        }
+
+        function endGame() {
+            // Subtract remaining tile values
+            rack.forEach(l => {
+                scores[currentPlayer - 1] -= LETTER_VALUES[l] || 0;
+            });
+
+            const winner = scores[0] > scores[1] ? 'Player 1' : scores[1] > scores[0] ? 'Player 2' : 'Tie';
+            alert(`Game Over!\n\nPlayer 1: ${scores[0]}\nPlayer 2: ${scores[1]}\n\nWinner: ${winner}!`);
+        }
+
+        // Initialize game
+        function init() {
+            initBag();
+            initBoard();
+            rack = drawTiles(7);
+            renderRack();
+            updateUI();
+
+            document.getElementById('btn-play').addEventListener('click', playWord);
+            document.getElementById('btn-recall').addEventListener('click', recallTiles);
+            document.getElementById('btn-shuffle').addEventListener('click', shuffleRack);
+            document.getElementById('btn-pass').addEventListener('click', passTurn);
+            document.getElementById('btn-exchange').addEventListener('click', exchangeTiles);
+        }
+
+        init();
+    </script>
+</body>
+</html>
