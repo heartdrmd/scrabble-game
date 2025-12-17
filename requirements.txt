@@ -1,0 +1,5 @@
+flask==3.0.0
+flask-cors==4.0.0
+flask-socketio==5.3.6
+simple-websocket
+requests==2.31.0
